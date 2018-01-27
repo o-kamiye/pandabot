@@ -32,7 +32,13 @@ app.post('/panda/webhook', function (req, res) {
     var events = req.body.entry[0].messaging;
     for (i = 0; i < events.length; i++) {
         var event = events[i];
-        if (event.message && event.message.text) {
+        //console.log(event);
+        if (hasCoordinates(event)) {
+        	var coordinates = event.message.attachments[0].payload.coordinates;
+		    	console.log('Lat: ' + coordinates.lat + ' Long: ' + coordinates.long);
+		    	sendLocationMessage(event.sender.id, event.message.attachments[0]);
+        }
+        else if (event.message && event.message.text) {
             sendMessage(event.sender.id, {text: "Echo: " + event.message.text});
         }
     }
@@ -65,3 +71,56 @@ function sendMessage(recipientId, message) {
       }
   });
 };
+
+function sendLocationMessage(recipientId, attachment) {
+	let text = "Great. Your location is " + attachment.title;
+  request({
+      url: 'https://graph.facebook.com/v2.6/me/messages',
+      qs: {access_token: PAGE_TOKEN},
+      method: 'POST',
+      json: {
+          recipient: {id: recipientId},
+          message: {
+          	"text": text
+          },
+      }
+  }, function(error, response, body) {
+      if (error) {
+          console.log('Error sending message: ', error);
+      } else if (response.body.error) {
+          console.log('Error: ', response.body.error);
+      } else {
+      	sendFurtherLocationMessage(recipientId, attachment.payload.coordinates);
+      }
+  });
+}
+
+function sendFurtherLocationMessage(recipientId, coordinates) {
+	let text = "And yeah!. Your coordinates are: Lat => " + coordinates.lat + " and Long => " + coordinates.long;
+	request({
+      url: 'https://graph.facebook.com/v2.6/me/messages',
+      qs: {access_token: PAGE_TOKEN},
+      method: 'POST',
+      json: {
+          recipient: {id: recipientId},
+          message: {
+          	"text": text
+          },
+      }
+  }, function(error, response, body) {
+      if (error) {
+          console.log('Error sending message: ', error);
+      } else if (response.body.error) {
+          console.log('Error: ', response.body.error);
+      }
+  });
+}
+
+function hasCoordinates(event) {
+  if (event.message && event.message.attachments 
+  	&& event.message.attachments[0].payload
+  	&& event.message.attachments[0].payload.coordinates) {
+  	return true;
+  }
+  return false;
+}
