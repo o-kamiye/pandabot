@@ -130,10 +130,25 @@ function sendFurtherLocationMessage(recipientId, coordinates) {
 			let locations = response.data;
 			let elements = [];
 			for (var i = 0; i < locations.length; i++) {
+				let phoneArray = locations[i].phone.split(" ");
+				let phone = "";
+				for (var j = 0; j < phoneArray.length; j++) {
+					if (phoneArray[j].match(/[a-z]/i)) break;
+					phone += phoneArray[j];
+				}
+				let openInfo = (locations[i].is_always_open) ? "Open 24 hours" : "Open 12 hours";
+				let subtitle = openInfo + '\n\n' + locations[i].address;
 				let healthcare = {
-					'title': locations[i].name,
-					'subtitle': 'Awesome healthcare',
-					'image_url': 'https://picsum.photos/200/300/?random'      
+						'title': locations[i].name,
+						'subtitle': subtitle,
+						'image_url': locations[i].picture,
+						'buttons' : [
+							{
+								'type' : 'phone_number',
+								'title' : 'Call ' + locations[i].name,
+								'payload' : phone
+							}
+						]
           }
 				elements.push(healthcare);
 			}
@@ -148,6 +163,7 @@ function sendFurtherLocationMessage(recipientId, coordinates) {
 				      "type": "template",
 				      "payload": {
 				        "template_type": "generic",
+				        "image_aspect_ratio": "square",
 				        "elements": elements  
 				      }
 				    }
