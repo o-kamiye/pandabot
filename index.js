@@ -7,6 +7,34 @@ var express = require('express');
 var bodyParser = require('body-parser');  
 var request = require('request');  
 var app = express();
+let axios = require('axios');
+let http = require('http');
+let https = require('https');
+const api_endpoint = 'https://panda-bot.herokuapp.com/api/search'
+
+axios.create({
+	//60 sec timeout
+  timeout: 60000,
+
+  //keepAlive pools and reuses TCP connections, so it's faster
+  httpAgent: new http.Agent({ keepAlive: true }),
+  httpsAgent: new https.Agent({ keepAlive: true }),
+  
+  //follow up to 10 HTTP 3xx redirects
+  maxRedirects: 10,
+  
+  //cap the maximum content length we'll accept to 50MBs, just in case
+  maxContentLength: 50 * 1000 * 1000,
+
+  headers: {'Content-Type': 'application/json'},
+
+  transformResponse: [function (data) {
+    // Do whatever you want to transform the data
+ 
+    return data;
+  }]
+
+});
 
 const PAGE_TOKEN = "EAAdGg6fq9UcBALP0ZCBuCFC3miDUBqymR9oOP5kSt8a2N2YZB9r2RemtmRmUAkpFwWZCQyZBKissAz6qfbpqB4u3JyKL35eFS5H0LUdtYkPuQAHwqTuvZCnqKqIXsZCR0nJRLLkukH1tZCeZAsd0OGZCD7jN9XkRVZArG5sEZBAGPm9yAZDZD";
 
@@ -35,7 +63,6 @@ app.post('/panda/webhook', function (req, res) {
         //console.log(event);
         if (hasCoordinates(event)) {
         	var coordinates = event.message.attachments[0].payload.coordinates;
-		    	console.log('Lat: ' + coordinates.lat + ' Long: ' + coordinates.long);
 		    	sendLocationMessage(event.sender.id, event.message.attachments[0]);
         }
         else if (event.message && event.message.text) {
@@ -63,7 +90,7 @@ function sendMessage(recipientId, message) {
 				    ]
           },
       }
-  }, function(error, response, body) {
+  }, (error, response, body) => {
       if (error) {
           console.log('Error sending message: ', error);
       } else if (response.body.error) {
@@ -73,7 +100,7 @@ function sendMessage(recipientId, message) {
 };
 
 function sendLocationMessage(recipientId, attachment) {
-	let text = "Great. Your location is " + attachment.title;
+	let text = "Great! We've got your location. We're now bringing you the closest healthcare...";
   request({
       url: 'https://graph.facebook.com/v2.6/me/messages',
       qs: {access_token: PAGE_TOKEN},
@@ -84,7 +111,7 @@ function sendLocationMessage(recipientId, attachment) {
           	"text": text
           },
       }
-  }, function(error, response, body) {
+  }, (error, response, body) => {
       if (error) {
           console.log('Error sending message: ', error);
       } else if (response.body.error) {
@@ -96,24 +123,51 @@ function sendLocationMessage(recipientId, attachment) {
 }
 
 function sendFurtherLocationMessage(recipientId, coordinates) {
-	let text = "And yeah!. Your coordinates are: Lat => " + coordinates.lat + " and Long => " + coordinates.long;
-	request({
-      url: 'https://graph.facebook.com/v2.6/me/messages',
-      qs: {access_token: PAGE_TOKEN},
-      method: 'POST',
-      json: {
+	let lat = coordinates.lat;
+	let long = coordinates.long;
+	axios.get(api_endpoint + '?latitude=' + lat + '&' + 'longitude=' + long).then((response) => {
+		if (response.status == 200) {
+			let locations = response.data;
+			let elements = [];
+			for (var i = 0; i < locations.length; i++) {
+				let healthcare = {
+					'title': locations[i].name,
+					'subtitle': 'Awesome healthcare',
+					'image_url': 'https://picsum.photos/200/300/?random'      
+          }
+				elements.push(healthcare);
+			}
+			request({
+	      url: 'https://graph.facebook.com/v2.6/me/messages',
+	      qs: {access_token: PAGE_TOKEN},
+	      method: 'POST',
+	      json: {
           recipient: {id: recipientId},
           message: {
-          	"text": text
-          },
-      }
-  }, function(error, response, body) {
-      if (error) {
-          console.log('Error sending message: ', error);
-      } else if (response.body.error) {
-          console.log('Error: ', response.body.error);
-      }
-  });
+				    "attachment": {
+				      "type": "template",
+				      "payload": {
+				        "template_type": "generic",
+				        "elements": elements  
+				      }
+				    }
+				  }
+	      }
+		  }, (error, response, body) => {
+	      if (error) {
+	          console.log('Error sending message: ', error);
+	      } else if (response.body.error) {
+	          console.log('Error: ', response.body.error);
+	      }
+		  });
+		}
+		else {
+			console.log(response.data);
+		}
+	})
+	.catch((err) => {
+		console.log(err);
+	});
 }
 
 function hasCoordinates(event) {
