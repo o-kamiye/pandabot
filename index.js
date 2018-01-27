@@ -65,6 +65,9 @@ app.post('/panda/webhook', function (req, res) {
         	var coordinates = event.message.attachments[0].payload.coordinates;
 		    	sendLocationMessage(event.sender.id, event.message.attachments[0]);
         }
+        else if (hasDirectionsPayload(event)) {
+        	getJourneyDirection(event.postback.payload);
+        }
         else if (event.message && event.message.text) {
             sendMessage(event.sender.id, {text: "Echo: " + event.message.text});
         }
@@ -100,7 +103,7 @@ function sendMessage(recipientId, message) {
 };
 
 function sendLocationMessage(recipientId, attachment) {
-	let text = "Great! We've got your location. We're now bringing you the closest healthcare...";
+	let text = "Great! I've got your location. I'm now bringing you the closest healthcare...";
   request({
       url: 'https://graph.facebook.com/v2.6/me/messages',
       qs: {access_token: PAGE_TOKEN},
@@ -130,16 +133,21 @@ function sendFurtherLocationMessage(recipientId, coordinates) {
 			let locations = response.data;
 			let elements = [];
 			for (var i = 0; i < locations.length; i++) {
-				let phoneArray = locations[i].phone.split(" ");
+				let locationPhone = locations[i].phone;
 				let phone = "";
-				for (var j = 0; j < phoneArray.length; j++) {
-					if (phoneArray[j].match(/[a-z]/i)) break;
-					phone += phoneArray[j];
+				if (locationPhone != null) {
+					let phoneArray = locations[i].phone.split(" ");
+					for (var j = 0; j < phoneArray.length; j++) {
+						if (phoneArray[j].match(/[a-z]/i)) break;
+						phone += phoneArray[j];
+					}
 				}
 				let openInfo = (locations[i].is_always_open) ? "Open 24 hours" : "Open 12 hours";
-				let subtitle = openInfo + '\n\n' + locations[i].address;
+				let title = locations[i].name + ' (' + openInfo + ')'; 
+				let subtitle = locations[i].address;
+				let payload = 'journey_to_place' // stringify json string here
 				let healthcare = {
-						'title': locations[i].name,
+						'title': title,
 						'subtitle': subtitle,
 						'image_url': locations[i].picture,
 						'buttons' : [
@@ -147,6 +155,11 @@ function sendFurtherLocationMessage(recipientId, coordinates) {
 								'type' : 'phone_number',
 								'title' : 'Call ' + locations[i].name,
 								'payload' : phone
+							},
+							{
+							  "type": "postback",
+							  "title": "Get directions",
+							  "payload": payload
 							}
 						]
           }
@@ -186,6 +199,11 @@ function sendFurtherLocationMessage(recipientId, coordinates) {
 	});
 }
 
+function getJourneyDirection(payload) {
+	//let journey = JSON.parse(payload);
+	console.log('New pay ' + payload);
+}
+
 function hasCoordinates(event) {
   if (event.message && event.message.attachments 
   	&& event.message.attachments[0].payload
@@ -193,4 +211,12 @@ function hasCoordinates(event) {
   	return true;
   }
   return false;
+}
+
+function hasDirectionsPayload(event) {
+	if (event.postback 
+		&& event.postback.payload) {
+		return true;
+	}
+	return false;
 }
