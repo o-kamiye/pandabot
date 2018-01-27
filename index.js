@@ -40,20 +40,28 @@ app.post('/panda/webhook', function (req, res) {
 });
 
 // generic function sending messages
-function sendMessage(recipientId, message) {  
-    request({
-        url: 'https://graph.facebook.com/v2.6/me/messages',
-        qs: {access_token: process.env.PAGE_TOKEN},
-        method: 'POST',
-        json: {
-            recipient: {id: recipientId},
-            message: message,
-        }
-    }, function(error, response, body) {
-        if (error) {
-            console.log('Error sending message: ', error);
-        } else if (response.body.error) {
-            console.log('Error: ', response.body.error);
-        }
-    });
+function sendMessage(recipientId, message) {
+	let text = "Hello, I can get you to the closest health facility as fast and safe as possible for your maternity needs. \n\nSimply tell me where you are.";
+  request({
+      url: 'https://graph.facebook.com/v2.6/me/messages',
+      qs: {access_token: PAGE_TOKEN},
+      method: 'POST',
+      json: {
+          recipient: {id: recipientId},
+          message: {
+          	"text": text,
+          	"quick_replies":[
+				      {
+				        "content_type":"location"
+				      }
+				    ]
+          },
+      }
+  }, function(error, response, body) {
+      if (error) {
+          console.log('Error sending message: ', error);
+      } else if (response.body.error) {
+          console.log('Error: ', response.body.error);
+      }
+  });
 };
