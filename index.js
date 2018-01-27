@@ -130,7 +130,9 @@ function sendFurtherLocationMessage(recipientId, coordinates) {
 	let long = coordinates.long;
 	axios.get(api_endpoint + '?latitude=' + lat + '&' + 'longitude=' + long).then((response) => {
 		if (response.status == 200) {
-			let locations = response.data;
+			let locations = response.data.data;
+			let current_location = response.data.current_location;
+			let place_location = locations.location;
 			let elements = [];
 			for (var i = 0; i < locations.length; i++) {
 				let locationPhone = locations[i].phone;
@@ -145,7 +147,17 @@ function sendFurtherLocationMessage(recipientId, coordinates) {
 				let openInfo = (locations[i].is_always_open) ? "Open 24 hours" : "Open 12 hours";
 				let title = locations[i].name + ' (' + openInfo + ')'; 
 				let subtitle = locations[i].address;
-				let payload = 'journey_to_place' // stringify json string here
+				let payload = {
+					'current_location': {
+						'long': current_location[0],
+						'lat': current_location[1]
+					},
+					'place_location': {
+						'long': place_location.longitude,
+						'lat': place_location.latitude
+					}
+				}; 
+				let payloadString = JSON.stringify(payload);
 				let healthcare = {
 						'title': title,
 						'subtitle': subtitle,
@@ -159,7 +171,7 @@ function sendFurtherLocationMessage(recipientId, coordinates) {
 							{
 							  "type": "postback",
 							  "title": "Get directions",
-							  "payload": payload
+							  "payload": payloadString
 							}
 						]
           }
@@ -199,9 +211,9 @@ function sendFurtherLocationMessage(recipientId, coordinates) {
 	});
 }
 
-function getJourneyDirection(payload) {
-	//let journey = JSON.parse(payload);
-	console.log('New pay ' + payload);
+function getJourneyDirection(payloadString) {
+	let payload = JSON.parse(payloadString);
+	console.log(payload);
 }
 
 function hasCoordinates(event) {
