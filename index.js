@@ -60,39 +60,40 @@ app.get('/panda/webhook', function (req, res) {
 app.post('/panda/webhook', function (req, res) {  
     var events = req.body.entry[0].messaging;
     for (i = 0; i < events.length; i++) {
-        var event = events[i];
-        //console.log(event);
-        if (hasCoordinates(event)) {
-        	var coordinates = event.message.attachments[0].payload.coordinates;
-		    	sendLocationMessage(event.sender.id, event.message.attachments[0]);
-        }
-        else if (hasDirectionsPayload(event)) {
-        	getJourneyDirection(event.sender.id, event.postback.payload);
-        }
-        else if (event.message && event.message.text) {
-            sendMessage(event.sender.id, {text: "Echo: " + event.message.text});
-        }
+      var event = events[i];
+      //console.log(event);
+      if (hasCoordinates(event)) {
+      	var coordinates = event.message.attachments[0].payload.coordinates;
+	    	sendLocationMessage(event.sender.id, event.message.attachments[0]);
+      }
+      else if (hasDirectionsPayload(event)) {
+      	getJourneyDirection(event.sender.id, event.postback.payload);
+      }
+      else if (event.message && event.message.text) {
+          sendMessage(event.sender.id, event.message.text);
+      }
     }
     res.sendStatus(200);
 });
 
 // generic function sending messages
 function sendMessage(recipientId, message) {
-	let text = "Hello, I can get you to the closest health facility as fast and safe as possible for your maternity needs. \n\nSimply tell me where you are.";
+	let input = message.toLowerCase();
+	let output = {};
+	if (input == 'thanks' || input == 'thank you' || input == 'thank') {
+		output.text = "Glad the great Panda 🐼 was able to help you out this time 😃";
+	}
+	else {
+		output.text = "Hello, I can get you to the closest health facility as fast and safe as possible for your maternity needs. \n\nSimply tell me where you are.";
+		output.quick_replies = [{"content_type":"location"}];
+	}
   request({
       url: 'https://graph.facebook.com/v2.6/me/messages',
       qs: {access_token: PAGE_TOKEN},
       method: 'POST',
       json: {
           recipient: {id: recipientId},
-          message: {
-          	"text": text,
-          	"quick_replies":[
-				      {
-				        "content_type":"location"
-				      }
-				    ]
-          },
+          message: output,
       }
   }, (error, response, body) => {
       if (error) {
@@ -275,9 +276,6 @@ function getJourneyDirection(recipientId, payloadString) {
 	          console.log('Error sending message: ', error);
 	      } else if (response.body.error) {
 	          console.log('Error: ', response.body.error);
-	      }
-	      else {
-	      	sendFinalMessage(recipientId);
 	      }
 		  });
 		}
