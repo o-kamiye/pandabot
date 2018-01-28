@@ -256,6 +256,9 @@ function getJourneyDirection(recipientId, payloadString) {
 					}
 				}
 			}
+			if (legs.length == 1) {
+				instructions = 'What to do: ' + legs[0].recommended + ' to your destination';
+			}
 			let final_instructions = approxTime + '\n\n' + approxDistance + '\n\n' + instructions;
 			request({
 	      url: 'https://graph.facebook.com/v2.6/me/messages',
