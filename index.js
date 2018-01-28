@@ -223,8 +223,12 @@ function getJourneyDirection(recipientId, payloadString) {
 			let journey = response.data.data[0];
 			let approxTime = journey.total_duration;
 			let approxDistance = journey.total_distance;
+			let distanceInKm = Math.floor(approxDistance/1000);
+			let actualDistance = '';
+			if (distanceInKm > 0) actualDistance = distanceInKm + 'km';
+			else actualDistance = approxDistance + 'metres';
 			approxTime = 'You should get to the hospital in about ' + Math.floor(approxTime/60) + ' mins';
-			approxDistance = 'Total distance is about ' + Math.floor(approxDistance/1000);
+			approxDistance = 'Total distance is about ' + actualDistance;
 			let instructions = '';
 			let legs = journey.legs;
 			for (var i = 0; i < legs.length; i++) {
@@ -252,6 +256,7 @@ function getJourneyDirection(recipientId, payloadString) {
 					}
 				}
 			}
+			let final_instructions = approxTime + '\n\n' + approxDistance + '\n\n' + instructions;
 			request({
 	      url: 'https://graph.facebook.com/v2.6/me/messages',
 	      qs: {access_token: PAGE_TOKEN},
@@ -259,7 +264,7 @@ function getJourneyDirection(recipientId, payloadString) {
 	      json: {
 	        recipient: {id: recipientId},
 	        message: {
-	        	"text": instructions
+	        	"text": final_instructions
 	        },
 	      }
 		  }, (error, response, body) => {
