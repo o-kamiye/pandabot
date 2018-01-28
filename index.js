@@ -276,6 +276,9 @@ function getJourneyDirection(recipientId, payloadString) {
 	      } else if (response.body.error) {
 	          console.log('Error: ', response.body.error);
 	      }
+	      else {
+	      	sendFinalMessage(recipientId);
+	      }
 		  });
 		}
 		else {
@@ -285,6 +288,26 @@ function getJourneyDirection(recipientId, payloadString) {
 	.catch((err) => {
 		console.log(err)
 	});
+}
+
+function sendFinalMessage(recipientId) {
+	request({
+    url: 'https://graph.facebook.com/v2.6/me/messages',
+    qs: {access_token: PAGE_TOKEN},
+    method: 'POST',
+    json: {
+      recipient: {id: recipientId},
+      message: {
+      	"text": "Glad the great Panda 🐼 was able to help you out this time 😃"
+      },
+    }
+  }, (error, response, body) => {
+    if (error) {
+        console.log('Error sending message: ', error);
+    } else if (response.body.error) {
+        console.log('Error: ', response.body.error);
+    }
+  });
 }
 
 function hasCoordinates(event) {
