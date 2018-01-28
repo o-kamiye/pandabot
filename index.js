@@ -10,7 +10,8 @@ var app = express();
 let axios = require('axios');
 let http = require('http');
 let https = require('https');
-const api_endpoint = 'https://panda-bot.herokuapp.com/api/search'
+const api_endpoint = 'https://panda-bot.herokuapp.com/api/search';
+const search_endpoint = 'https://panda-bot.herokuapp.com/api/journey';
 
 axios.create({
 	//60 sec timeout
@@ -66,7 +67,7 @@ app.post('/panda/webhook', function (req, res) {
 		    	sendLocationMessage(event.sender.id, event.message.attachments[0]);
         }
         else if (hasDirectionsPayload(event)) {
-        	getJourneyDirection(event.postback.payload);
+        	getJourneyDirection(event.sender.id, event.postback.payload);
         }
         else if (event.message && event.message.text) {
             sendMessage(event.sender.id, {text: "Echo: " + event.message.text});
@@ -109,10 +110,10 @@ function sendLocationMessage(recipientId, attachment) {
       qs: {access_token: PAGE_TOKEN},
       method: 'POST',
       json: {
-          recipient: {id: recipientId},
-          message: {
-          	"text": text
-          },
+        recipient: {id: recipientId},
+        message: {
+        	"text": text
+        },
       }
   }, (error, response, body) => {
       if (error) {
@@ -210,9 +211,72 @@ function sendFurtherLocationMessage(recipientId, coordinates) {
 	});
 }
 
-function getJourneyDirection(payloadString) {
+function getJourneyDirection(recipientId, payloadString) {
 	let payload = JSON.parse(payloadString);
-	console.log(payload);
+
+	axios.post(search_endpoint, {
+		origin: [payload.current_location.long, payload.current_location.lat],
+		destination: [payload.place_location.long, payload.place_location.lat] 
+	})
+	.then((response) => {
+		if (response.status == 200) {
+			let journey = response.data.data[0];
+			let approxTime = journey.total_duration;
+			let approxDistance = journey.total_distance;
+			approxTime = 'You should get to the hospital in about ' + Math.floor(approxTime/60) + ' mins';
+			approxDistance = 'Total distance is about ' + Math.floor(approxDistance/1000);
+			let instructions = '';
+			let legs = journey.legs;
+			for (var i = 0; i < legs.length; i++) {
+				let nextStep = i + 1;
+				if (i == 0) { // first
+					instructions += "Step " + nextStep + ': ' + legs[i].recommended;
+					if (legs.length > 1 && legs[i + 1].stage) {
+						let stageArray = legs[i + 1].stage.split("to");
+						instructions += ' to ' + stageArray[0] + '\n\n';
+					}
+				}
+				else if (i == legs.length - 1) { // last
+					instructions += "Step " + nextStep + ': ' + legs[i].recommended + ' to your destination';
+				}
+				else { // in between
+					if(((typeof legs[i].stage != "undefined") &&
+					     (typeof legs[i].stage.valueOf() == "string")) &&
+					    (legs[i].stage.length > 0)) {
+						let fromStage = legs[i].stage.split("to");
+						instructions += 'Step ' + nextStep + ': From ' + fromStage[0] + ' ' + legs[i].recommended;
+						instructions += ' to ' + fromStage[1] + '\n\n';
+					}
+					else {
+						instructions += 'Step ' + nextStep + ': It seems you need to ask arond from here 🙈';
+					}
+				}
+			}
+			request({
+	      url: 'https://graph.facebook.com/v2.6/me/messages',
+	      qs: {access_token: PAGE_TOKEN},
+	      method: 'POST',
+	      json: {
+	        recipient: {id: recipientId},
+	        message: {
+	        	"text": instructions
+	        },
+	      }
+		  }, (error, response, body) => {
+	      if (error) {
+	          console.log('Error sending message: ', error);
+	      } else if (response.body.error) {
+	          console.log('Error: ', response.body.error);
+	      }
+		  });
+		}
+		else {
+			console.log(response.data);
+		}
+	})
+	.catch((err) => {
+		console.log(err)
+	});
 }
 
 function hasCoordinates(event) {
