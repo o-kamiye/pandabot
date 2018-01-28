@@ -132,7 +132,6 @@ function sendFurtherLocationMessage(recipientId, coordinates) {
 		if (response.status == 200) {
 			let locations = response.data.data;
 			let current_location = response.data.current_location;
-			let place_location = locations.location;
 			let elements = [];
 			for (var i = 0; i < locations.length; i++) {
 				let locationPhone = locations[i].phone;
@@ -153,8 +152,8 @@ function sendFurtherLocationMessage(recipientId, coordinates) {
 						'lat': current_location[1]
 					},
 					'place_location': {
-						'long': place_location.longitude,
-						'lat': place_location.latitude
+						'long': locations[i].location.longitude,
+						'lat': locations[i].location.latitude
 					}
 				}; 
 				let payloadString = JSON.stringify(payload);
